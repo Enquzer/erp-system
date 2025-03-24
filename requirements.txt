@@ -1,6 +1,3 @@
-Flask
-Werkzeug
-sqlite3
+flask
+werkzeug
 Pillow
-pandas
-reportlab
