@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-center mb-0" style="color: #1A3C34;">Order Confirmation</h2>
+    <div>
+        <a href="{{ url_for('export_pdf', order_number=order.order_number) }}" class="btn btn-primary export-btn" style="background-color: #F28C38; border: none;">
+            <i class="bi bi-file-earmark-pdf"></i> PDF
+        </a>
+        <a href="{{ url_for('export_excel', order_number=order.order_number) }}" class="btn btn-secondary export-btn" style="background-color: #5B6D5B; border: none;">
+            <i class="bi bi-file-earmark-excel"></i> Excel
+        </a>
+    </div>
+</div>
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">Order Number: {{ order.order_number }}</h5>
+        <p><strong>Product:</strong> {{ order.product_name }}</p>
+        <p><strong>Category:</strong> {{ order.category }}</p>
+        <p><strong>Description:</strong> {{ order.product_description }}</p>
+        <p><strong>Color:</strong> {{ order.color }}</p>
+        <p><strong>Size:</strong> {{ order.size }}</p>
+        <p><strong>Quantity:</strong> {{ order.quantity }}</p>
+        <p><strong>Order Date:</strong> {{ order.order_date }}</p>
+        <p><strong>Expected Delivery Date:</strong> {{ order.expected_delivery_date }}</p>
+        <p><strong>Urgency:</strong> {{ 'Top Urgent' if order.is_urgent else 'Normal' }}</p>
+        <p><strong>Comments:</strong> {{ order.comments }}</p>
+        <p><strong>Status:</strong> {{ order.status }}</p>
+        <div class="d-flex flex-column flex-md-row gap-2">
+            <a href="{{ url_for('order_tracking', order_number=order.order_number) }}" class="btn btn-info" style="background-color: #1A3C34; border: none; color: white;">Track Order</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

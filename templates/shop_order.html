@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-center mb-0" style="color: #1A3C34;">Order Product: {{ product.product_name }}</h2>
+    <div>
+        <a href="{{ url_for('shop_order_export_pdf', product_id=product.product_id) }}" class="btn btn-primary export-btn" style="background-color: #F28C38; border: none;">
+            <i class="bi bi-file-earmark-pdf"></i> PDF
+        </a>
+        <a href="{{ url_for('shop_order_export_excel', product_id=product.product_id) }}" class="btn btn-secondary export-btn" style="background-color: #5B6D5B; border: none;">
+            <i class="bi bi-file-earmark-excel"></i> Excel
+        </a>
+    </div>
+</div>
+<form method="POST">
+    <div class="mb-3">
+        <label for="color" class="form-label">Color</label>
+        <select class="form-control" id="color" name="color" required>
+            {% for item in inventory|unique(attribute='color') %}
+            <option value="{{ item.color }}">{{ item.color }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label for="size" class="form-label">Size</label>
+        <select class="form-control" id="size" name="size" required>
+            {% for item in inventory|unique(attribute='size') %}
+            <option value="{{ item.size }}">{{ item.size }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label for="quantity" class="form-label">Quantity</label>
+        <input type="number" class="form-control" id="quantity" name="quantity" required>
+    </div>
+    <div class="mb-3">
+        <label for="order_date" class="form-label">Order Placement Date</label>
+        <input type="date" class="form-control" id="order_date" name="order_date" required>
+    </div>
+    <div class="mb-3">
+        <label for="expected_delivery_date" class="form-label">Expected Delivery Date</label>
+        <input type="date" class="form-control" id="expected_delivery_date" name="expected_delivery_date" required>
+    </div>
+    <div class="mb-3 form-check">
+        <input type="checkbox" class="form-check-input" id="is_urgent" name="is_urgent">
+        <label class="form-check-label" for="is_urgent">Top Urgent</label>
+    </div>
+    <div class="mb-3">
+        <label for="comments" class="form-label">Comments</label>
+        <textarea class="form-control" id="comments" name="comments" placeholder="Add any special instructions or comments"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary" style="background-color: #F28C38; border: none;">Place Order</button>
+</form>
+{% endblock %}

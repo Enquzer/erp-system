@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2 style="color: #1A3C34;">Factory Products</h2>
+<div class="d-flex justify-content-between mb-3">
+    <form method="GET" action="{{ url_for('factory_products') }}" class="d-flex">
+        <input type="text" class="form-control me-2" name="search" placeholder="Search by Product Code" value="{{ search_query or '' }}">
+        <button type="submit" class="btn btn-primary" style="background-color: #F28C38; border: none;">Search</button>
+    </form>
+    <div>
+        <a href="{{ url_for('factory_products_export_pdf') }}" class="btn btn-link"><i class="bi bi-file-earmark-pdf"></i></a>
+        <a href="{{ url_for('factory_products_export_excel') }}" class="btn btn-link"><i class="bi bi-file-earmark-excel"></i></a>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Image</th>
+                <th>Product Name</th>
+                <th>Product Code</th>
+                <th>Category</th>
+                <th>Color</th>
+                <th>Size</th>
+                <th>Produced Quantity</th>
+                <th>Sent to Shop</th>
+                <th>Balance</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            {% for inv in inventory[product.product_id] %}
+            <tr>
+                <td>
+                    {% if product.product_image %}
+                    <img src="{{ url_for('static', filename=product.product_image) }}" alt="{{ product.product_name }}" class="img-fluid" style="max-height: 50px;">
+                    {% else %}
+                    <p>No image</p>
+                    {% endif %}
+                </td>
+                <td>{{ product.product_name }}</td>
+                <td>{{ product.product_code }}</td>
+                <td>{{ product.category }}</td>
+                <td>{{ inv.color }}</td>
+                <td>{{ inv.size }}</td>
+                <td>{{ inv.quantity }}</td>
+                <td>
+                    {% set sent_qty = 0 %}
+                    {% for order in orders.get(product.product_id, []) %}
+                        {% if order.color == inv.color and order.size == inv.size and order.status != 'Cancelled' %}
+                            {% set sent_qty = sent_qty + order.quantity %}
+                        {% endif %}
+                    {% endfor %}
+                    {{ sent_qty }}
+                </td>
+                <td>{{ balances[product.product_id][(inv.color, inv.size)] | default('N/A') }}</td>
+            </tr>
+            {% endfor %}
+            {% else %}
+            <tr><td colspan="9" class="text-center">No products available.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

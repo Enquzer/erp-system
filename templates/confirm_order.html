@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-center mb-0" style="color: #1A3C34;">Confirm Order Receipt: {{ order.order_number }}</h2>
+    <div>
+        <a href="{{ url_for('confirm_order_export_pdf', order_number=order.order_number) }}" class="btn btn-primary export-btn" style="background-color: #F28C38; border: none;">
+            <i class="bi bi-file-earmark-pdf"></i> PDF
+        </a>
+        <a href="{{ url_for('confirm_order_export_excel', order_number=order.order_number) }}" class="btn btn-secondary export-btn" style="background-color: #5B6D5B; border: none;">
+            <i class="bi bi-file-earmark-excel"></i> Excel
+        </a>
+    </div>
+</div>
+<form method="POST">
+    <div class="mb-3">
+        <label for="received_quantity" class="form-label">Received Quantity</label>
+        <input type="number" class="form-control" id="received_quantity" name="received_quantity" value="{{ order.quantity }}" required>
+    </div>
+    <div class="mb-3">
+        <label for="received_color" class="form-label">Received Color</label>
+        <input type="text" class="form-control" id="received_color" name="received_color" value="{{ order.color }}" required>
+    </div>
+    <div class="mb-3">
+        <label for="received_size" class="form-label">Received Size</label>
+        <input type="text" class="form-control" id="received_size" name="received_size" value="{{ order.size }}" required>
+    </div>
+    <div class="mb-3">
+        <label for="received_date" class="form-label">Received Date</label>
+        <input type="date" class="form-control" id="received_date" name="received_date" required>
+    </div>
+    <div class="mb-3">
+        <label for="adjustment_comments" class="form-label">Adjustment Comments (if any deviation)</label>
+        <textarea class="form-control" id="adjustment_comments" name="adjustment_comments" placeholder="Add comments if there are deviations in quantity, color, or size"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary" style="background-color: #F28C38; border: none;">Confirm Receipt</button>
+</form>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2 style="color: #1A3C34;">Dashboard</h2>
+<div class="row">
+    <div class="col-md-4">
+        <h5>Production Overview</h5>
+        <div id="productionNoData" class="text-center" style="display: none;">No production data available.</div>
+        <canvas id="productionChart" height="200"></canvas>
+    </div>
+    <div class="col-md-4">
+        <h5>Delivery Overview</h5>
+        <div id="deliveryNoData" class="text-center" style="display: none;">No delivery data available.</div>
+        <canvas id="deliveryChart" height="200"></canvas>
+    </div>
+    <div class="col-md-4">
+        <h5>Delivery Status</h5>
+        <div id="deliveryStatusNoData" class="text-center" style="display: none;">No delivery status data available.</div>
+        <canvas id="deliveryStatusChart" height="200"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Pass data from Jinja2 to JavaScript safely
+    const chartData = {
+        productionLabels: {{ production_labels|tojson|default("[]") }},
+        productionValues: {{ production_values|tojson|default("[]") }},
+        deliveryLabels: {{ delivery_labels|tojson|default("[]") }},
+        deliveryValues: {{ delivery_values|tojson|default("[]") }},
+        deliveryStatusLabels: {{ delivery_status_labels|tojson|default('["On Time", "Delayed"]') }},
+        deliveryStatusValues: {{ delivery_status_values|tojson|default("[0, 0]") }}
+    };
+</script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

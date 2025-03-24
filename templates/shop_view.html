@@ -1,0 +1,357 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2 style="color: #1A3C34;">Shop View</h2>
+<div class="d-flex justify-content-between mb-3">
+    <form method="GET" action="{{ url_for('shop_view') }}" class="d-flex">
+        <input type="text" class="form-control me-2" name="search" placeholder="Search by Product Code" value="{{ search_query or '' }}">
+        <button type="submit" class="btn btn-primary" style="background-color: #F28C38; border: none;">Search</button>
+    </form>
+</div>
+
+<ul class="nav nav-tabs mb-3" id="shopTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="available-tab" data-bs-toggle="tab" data-bs-target="#available" type="button" role="tab" aria-controls="available" aria-selected="true">Available Products</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="place-order-tab" data-bs-toggle="tab" data-bs-target="#place-order" type="button" role="tab" aria-controls="place-order" aria-selected="false">Place Order</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="follow-up-tab" data-bs-toggle="tab" data-bs-target="#follow-up" type="button" role="tab" aria-controls="follow-up" aria-selected="false">Order Follow-Up</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="place-new-order-tab" data-bs-toggle="tab" data-bs-target="#place-new-order" type="button" role="tab" aria-controls="place-new-order" aria-selected="false">Place New Product Order</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="shopTabContent">
+    <div class="tab-pane fade show active" id="available" role="tabpanel" aria-labelledby="available-tab">
+        <div class="d-flex justify-content-end mb-3">
+            <a href="{{ url_for('shop_export_pdf', tab='available') }}" class="btn btn-link"><i class="bi bi-file-earmark-pdf"></i></a>
+            <a href="{{ url_for('shop_export_excel', tab='available') }}" class="btn btn-link"><i class="bi bi-file-earmark-excel"></i></a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Product Code</th>
+                        <th>Picture</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th>Campaign</th>
+                        <th>Size</th>
+                        <th>Color</th>
+                        <th>Produced Quantity</th>
+                        <th>Available Stock</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                        {% for inv in inventory[product.product_id] %}
+                        <tr>
+                            <td>{{ product.product_code }}</td>
+                            <td>
+                                {% if product.product_image %}
+                                <img src="{{ url_for('static', filename=product.product_image) }}" alt="{{ product.product_name }}" class="img-fluid" style="max-height: 50px;">
+                                {% else %}
+                                <p>No image</p>
+                                {% endif %}
+                            </td>
+                            <td>{{ product.product_name }}</td>
+                            <td>{{ product.product_description }}</td>
+                            <td>{{ product.category }}</td>
+                            <td>{{ product.campaign_type or 'N/A' }}</td>
+                            <td>{{ inv.size }}</td>
+                            <td>{{ inv.color }}</td>
+                            <td>{{ inv.quantity }}</td>
+                            <td>
+                                {% set sent_qty = 0 %}
+                                {% for order in orders %}
+                                    {% if order.product_id == product.product_id and order.color == inv.color and order.size == inv.size and order.status != 'Cancelled' %}
+                                        {% set sent_qty = sent_qty + order.quantity %}
+                                    {% endif %}
+                                {% endfor %}
+                                {{ inv.quantity - sent_qty }}
+                            </td>
+                            <td>
+                                {% set status = 'Available' %}
+                                {% set ordered = false %}
+                                {% set in_transit = false %}
+                                {% set delivered = false %}
+                                {% for order in orders %}
+                                    {% if order.product_id == product.product_id and order.color == inv.color and order.size == inv.size %}
+                                        {% if order.status == 'Pending' %}
+                                            {% set ordered = true %}
+                                            {% set status = 'Ordered' %}
+                                        {% elif order.status == 'Released' %}
+                                            {% set in_transit = true %}
+                                            {% set status = 'In Transit' %}
+                                        {% elif order.status == 'Received' %}
+                                            {% set delivered = true %}
+                                            {% set status = 'Delivered' %}
+                                        {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                                {% if ordered %}<i class="bi bi-cart text-warning" title="Ordered"></i>{% endif %}
+                                {% if in_transit %}<i class="bi bi-truck text-info" title="In Transit"></i>{% endif %}
+                                {% if delivered %}<i class="bi bi-check-circle text-success" title="Delivered"></i>{% endif %}
+                                {% if not (ordered or in_transit or delivered) %}<i class="bi bi-box text-primary" title="Available"></i>{% endif %}
+                                {{ status }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr><td colspan="11" class="text-center">No products available.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="place-order" role="tabpanel" aria-labelledby="place-order-tab">
+        <div class="d-flex justify-content-end mb-3">
+            <a href="{{ url_for('shop_export_pdf', tab='place-order') }}" class="btn btn-link"><i class="bi bi-file-earmark-pdf"></i></a>
+            <a href="{{ url_for('shop_export_excel', tab='place-order') }}" class="btn btn-link"><i class="bi bi-file-earmark-excel"></i></a>
+        </div>
+        <form method="POST" action="{{ url_for('shop_view') }}">
+            <input type="hidden" name="place_order" value="1">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="product_id" class="form-label">Select Product</label>
+                    <select class="form-select" id="product_id" name="product_id" required onchange="populateStock()">
+                        {% for product in products %}
+                            <option value="{{ product.product_id }}" data-inventory='{{ inventory[product.product_id]|tojson }}'>{{ product.product_name }} ({{ product.product_code }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="color" class="form-label">Color</label>
+                    <input type="text" class="form-control" id="color" name="color" required>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="size" class="form-label">Size</label>
+                    <input type="text" class="form-control" id="size" name="size" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="quantity" class="form-label">Quantity (Stock: <span id="stock">N/A</span>)</label>
+                    <input type="number" class="form-control" id="quantity" name="quantity" min="1" required>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="order_date" class="form-label">Order Date</label>
+                    <input type="date" class="form-control" id="order_date" name="order_date" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="expected_delivery_date" class="form-label">Expected Delivery Date</label>
+                    <input type="date" class="form-control" id="expected_delivery_date" name="expected_delivery_date" required>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="is_urgent" name="is_urgent">
+                    <label class="form-check-label" for="is_urgent">Urgent</label>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="comments" class="form-label">Comments</label>
+                    <textarea class="form-control" id="comments" name="comments" rows="2"></textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="background-color: #F28C38; border: none;">Place Order</button>
+            <button type="reset" class="btn btn-secondary" style="background-color: #5B6D5B; border: none;">Cancel</button>
+        </form>
+    </div>
+
+    <div class="tab-pane fade" id="follow-up" role="tabpanel" aria-labelledby="follow-up-tab">
+        <div class="d-flex justify-content-end mb-3">
+            <a href="{{ url_for('shop_export_pdf', tab='follow-up') }}" class="btn btn-link"><i class="bi bi-file-earmark-pdf"></i></a>
+            <a href="{{ url_for('shop_export_excel', tab='follow-up') }}" class="btn btn-link"><i class="bi bi-file-earmark-excel"></i></a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Order Number</th>
+                        <th>Image</th>
+                        <th>Product Name</th>
+                        <th>Size</th>
+                        <th>Color</th>
+                        <th>Quantity</th>
+                        <th>Order Date</th>
+                        <th>Expected Delivery</th>
+                        <th>Received Date</th>
+                        <th>Status</th>
+                        <th>Comments</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td>{{ order.order_number }}</td>
+                        <td>
+                            {% set product = products|selectattr('product_id', 'equalto', order.product_id)|first %}
+                            {% if product and product.product_image %}
+                            <img src="{{ url_for('static', filename=product.product_image) }}" alt="{{ order.product_name }}" class="img-fluid" style="max-height: 50px;">
+                            {% else %}
+                            <p>No image</p>
+                            {% endif %}
+                        </td>
+                        <td>{{ order.product_name }}</td>
+                        <td>{{ order.size }}</td>
+                        <td>{{ order.color }}</td>
+                        <td>{{ order.quantity }}</td>
+                        <td>{{ order.order_date }}</td>
+                        <td>{{ order.expected_delivery_date }}</td>
+                        <td>{{ order.received_date or 'N/A' }}</td>
+                        <td>{{ order.status }}</td>
+                        <td>{{ order.adjustment_comments or order.comments or 'N/A' }}</td>
+                        <td>
+                            {% if order.status == 'Released' %}
+                            <a href="{{ url_for('confirm_order', order_number=order.order_number) }}" class="btn btn-sm btn-success" title="Confirm Receipt"><i class="bi bi-check"></i></a>
+                            {% endif %}
+                            {% if order.status == 'Pending' %}
+                            <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editModal{{ order.order_number }}" title="Edit"><i class="bi bi-pencil"></i></button>
+                            <form method="POST" action="{{ url_for('cancel_order', order_number=order.order_number) }}" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <!-- Edit Modal -->
+                    <div class="modal fade" id="editModal{{ order.order_number }}" tabindex="-1" aria-labelledby="editModalLabel{{ order.order_number }}" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="editModalLabel{{ order.order_number }}">Edit Order {{ order.order_number }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('edit_order', order_number=order.order_number) }}">
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label for="quantity{{ order.order_number }}" class="form-label">Quantity</label>
+                                            <input type="number" class="form-control" id="quantity{{ order.order_number }}" name="quantity" value="{{ order.quantity }}" min="1" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="color{{ order.order_number }}" class="form-label">Color</label>
+                                            <input type="text" class="form-control" id="color{{ order.order_number }}" name="color" value="{{ order.color }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="size{{ order.order_number }}" class="form-label">Size</label>
+                                            <input type="text" class="form-control" id="size{{ order.order_number }}" name="size" value="{{ order.size }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="expected_delivery_date{{ order.order_number }}" class="form-label">Expected Delivery Date</label>
+                                            <input type="date" class="form-control" id="expected_delivery_date{{ order.order_number }}" name="expected_delivery_date" value="{{ order.expected_delivery_date }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="comments{{ order.order_number }}" class="form-label">Comments</label>
+                                            <textarea class="form-control" id="comments{{ order.order_number }}" name="comments" rows="2">{{ order.comments }}</textarea>
+                                        </div>
+                                        <div class="form-check mb-3">
+                                            <input type="checkbox" class="form-check-input" id="is_urgent{{ order.order_number }}" name="is_urgent" {% if order.is_urgent %}checked{% endif %}>
+                                            <label class="form-check-label" for="is_urgent{{ order.order_number }}">Urgent</label>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        <button type="submit" class="btn btn-primary" style="background-color: #F28C38; border: none;">Save Changes</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="place-new-order" role="tabpanel" aria-labelledby="place-new-order-tab">
+        <div class="d-flex justify-content-end mb-3">
+            <a href="{{ url_for('shop_export_pdf', tab='place-new-order') }}" class="btn btn-link"><i class="bi bi-file-earmark-pdf"></i></a>
+            <a href="{{ url_for('shop_export_excel', tab='place-new-order') }}" class="btn btn-link"><i class="bi bi-file-earmark-excel"></i></a>
+        </div>
+        <form method="POST" action="{{ url_for('shop_view') }}">
+            <input type="hidden" name="place_new_order" value="1">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="product_name" class="form-label">Product Name</label>
+                    <input type="text" class="form-control" id="product_name" name="product_name" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="color" class="form-label">Color</label>
+                    <input type="text" class="form-control" id="color" name="color" required>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="size" class="form-label">Size</label>
+                    <input type="text" class="form-control" id="size" name="size" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="quantity" class="form-label">Quantity</label>
+                    <input type="number" class="form-control" id="quantity" name="quantity" min="1" required>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="order_date" class="form-label">Order Date</label>
+                    <input type="date" class="form-control" id="order_date" name="order_date" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="expected_delivery_date" class="form-label">Expected Delivery Date</label>
+                    <input type="date" class="form-control" id="expected_delivery_date" name="expected_delivery_date" required>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="is_urgent" name="is_urgent">
+                    <label class="form-check-label" for="is_urgent">Urgent</label>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="comments" class="form-label">Comments</label>
+                    <textarea class="form-control" id="comments" name="comments" rows="2"></textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="background-color: #F28C38; border: none;">Place New Order</button>
+            <button type="reset" class="btn btn-secondary" style="background-color: #5B6D5B; border: none;">Cancel</button>
+        </form>
+    </div>
+</div>
+
+<style>
+    .nav-tabs .nav-link {
+        color: #1A3C34;
+    }
+    .nav-tabs .nav-link.active {
+        background-color: #F28C38;
+        color: white;
+    }
+</style>
+
+<script>
+function populateStock() {
+    const select = document.getElementById('product_id');
+    const color = document.getElementById('color').value.trim();
+    const size = document.getElementById('size').value.trim();
+    const stockSpan = document.getElementById('stock');
+    const selectedOption = select.options[select.selectedIndex];
+    const inventory = JSON.parse(selectedOption.getAttribute('data-inventory'));
+
+    let stock = 'N/A';
+    if (color && size) {
+        const item = inventory.find(i => i.color.toLowerCase() === color.toLowerCase() && i.size.toLowerCase() === size.toLowerCase());
+        stock = item ? item.quantity : 0;
+    }
+    stockSpan.textContent = stock;
+}
+
+document.getElementById('color').addEventListener('input', populateStock);
+document.getElementById('size').addEventListener('input', populateStock);
+</script>
+{% endblock %}

@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2 class="text-center mb-4" style="color: #1A3C34;">Factory Upload</h2>
+<div class="d-flex justify-content-between mb-3">
+    <form method="GET" action="{{ url_for('factory_upload') }}" class="d-flex">
+        <input type="text" class="form-control me-2" name="search" placeholder="Search by Product Code" value="{{ search_query or '' }}">
+        <button type="submit" class="btn btn-primary" style="background-color: #F28C38; border: none;">Search</button>
+    </form>
+    <div>
+        <a href="{{ url_for('factory_upload_export_pdf') }}" class="btn btn-link"><i class="bi bi-file-earmark-pdf"></i></a>
+        <a href="{{ url_for('factory_upload_export_excel') }}" class="btn btn-link"><i class="bi bi-file-earmark-excel"></i></a>
+        {% if pending_orders|length > 0 %}
+        <span class="badge bg-danger ms-2">{{ pending_orders|length }} New Orders</span>
+        {% endif %}
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-4" id="factoryTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload" type="button" role="tab" aria-controls="upload" aria-selected="true">Upload New Product</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="inventory-tab" data-bs-toggle="tab" data-bs-target="#inventory" type="button" role="tab" aria-controls="inventory" aria-selected="false">Product Inventory Overview</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button" role="tab" aria-controls="orders" aria-selected="false">Pending Orders</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="factoryTabsContent">
+    <div class="tab-pane fade show active" id="upload" role="tabpanel" aria-labelledby="upload-tab">
+        <h3 style="color: #1A3C34;">Upload New Product</h3>
+        <form method="POST" enctype="multipart/form-data">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="product_code" class="form-label">Product Code</label>
+                    <input type="text" class="form-control" id="product_code" name="product_code" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="product_name" class="form-label">Product Name</label>
+                    <input type="text" class="form-control" id="product_name" name="product_name" required>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="category" class="form-label">Category</label>
+                    <select class="form-control" id="category" name="category" required>
+                        <option value="Ladies">Ladies</option>
+                        <option value="Men">Men</option>
+                        <option value="Boys">Boys</option>
+                        <option value="Girls">Girls</option>
+                        <option value="Teenage">Teenage</option>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="campaign_type" class="form-label">Campaign Type</label>
+                    <select class="form-control" id="campaign_type" name="campaign_type" required>
+                        <option value="Regular">Regular</option>
+                        <option value="Seasonal">Seasonal</option>
+                        <option value="Promotional">Promotional</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="product_image" class="form-label">Product Image</label>
+                <input type="file" class="form-control" id="product_image" name="product_image" accept="image/*" onchange="previewImage(event)">
+                <img id="imagePreview" class="img-fluid mt-2" style="max-height: 100px; display: none;" alt="Preview">
+            </div>
+            <div class="mb-3">
+                <label for="product_description" class="form-label">Product Description</label>
+                <textarea class="form-control" id="product_description" name="product_description" required rows="2"></textarea>
+            </div>
+            <h4>Produced Quantity Breakdown</h4>
+            <div id="breakdown-container">
+                <div class="breakdown-entry row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Color</label>
+                        <input type="text" class="form-control" name="color[]" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Size</label>
+                        <input type="text" class="form-control" name="size[]" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Quantity</label>
+                        <input type="number" class="form-control" name="quantity[]" required>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-secondary mb-3" onclick="addBreakdown()">Add More</button>
+            <button type="submit" class="btn btn-primary" style="background-color: #F28C38; border: none;">Upload Product</button>
+        </form>
+
+        {% if uploaded_product %}
+        <h3 class="mt-5" style="color: #1A3C34;">Uploaded Product</h3>
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">{{ uploaded_product.product_name }} (Code: {{ uploaded_product.product_code }})</h5>
+                <p><strong>Category:</strong> {{ uploaded_product.category }}</p>
+                <p><strong>Campaign Type:</strong> {{ uploaded_product.campaign_type }}</p>
+                <p><strong>Description:</strong> {{ uploaded_product.product_description }}</p>
+                {% if uploaded_product.product_image %}
+                <img src="{{ url_for('static', filename=uploaded_product.product_image) }}" class="img-fluid mb-3" alt="{{ uploaded_product.product_name }}" style="max-height: 80px;">
+                {% endif %}
+                <h6>Produced Breakdown:</h6>
+                <ul>
+                    {% for inv in uploaded_inventory %}
+                    <li>{{ inv.color }} - {{ inv.size }}: {{ inv.quantity }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="tab-pane fade" id="inventory" role="tabpanel" aria-labelledby="inventory-tab">
+        <h3 style="color: #1A3C34;">Product Inventory Overview</h3>
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Image</th>
+                        <th>Product Name</th>
+                        <th>Category</th>
+                        <th>Color</th>
+                        <th>Size</th>
+                        <th>Produced Quantity</th>
+                        <th>Sent to Shop</th>
+                        <th>Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    {% for inv in inventory[product.product_id] %}
+                    <tr>
+                        <td>
+                            {% if product.product_image %}
+                            <img src="{{ url_for('static', filename=product.product_image) }}" alt="{{ product.product_name }}" class="img-fluid" style="max-height: 50px;">
+                            {% else %}
+                            <p>No image</p>
+                            {% endif %}
+                        </td>
+                        <td>{{ product.product_name }} (Code: {{ product.product_code }})</td>
+                        <td>{{ product.category }}</td>
+                        <td>{{ inv.color }}</td>
+                        <td>{{ inv.size }}</td>
+                        <td>{{ inv.quantity }}</td>
+                        <td>
+                            {% set sent_qty = 0 %}
+                            {% for order in orders.get(product.product_id, []) %}
+                                {% if order.color == inv.color and order.size == inv.size %}
+                                    {% set sent_qty = sent_qty + order.quantity %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ sent_qty }}
+                        </td>
+                        <td>{{ balances[product.product_id][(inv.color, inv.size)] | default('N/A') }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="orders" role="tabpanel" aria-labelledby="orders-tab">
+        <h3 style="color: #1A3C34;">Pending Orders</h3>
+        <div class="table-responsive">
+            {% if pending_orders %}
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Order Number</th>
+                        <th>Product</th>
+                        <th>Color</th>
+                        <th>Size</th>
+                        <th>Quantity</th>
+                        <th>Order Date</th>
+                        <th>Expected Delivery</th>
+                        <th>Urgency</th>
+                        <th>Comments</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in pending_orders %}
+                    <tr>
+                        <td>{{ order.order_number }}</td>
+                        <td>{{ order.product_name }}</td>
+                        <td>{{ order.color }}</td>
+                        <td>{{ order.size }}</td>
+                        <td>{{ order.quantity }}</td>
+                        <td>{{ order.order_date }}</td>
+                        <td>{{ order.expected_delivery_date }}</td>
+                        <td>{{ 'Urgent' if order.is_urgent else 'Normal' }}</td>
+                        <td>{{ order.comments }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('release_order', order_number=order.order_number) }}" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-success" title="Release to Shop"><i class="bi bi-truck"></i></button>
+                            </form>
+                            <form method="POST" action="{{ url_for('reject_order', order_number=order.order_number) }}" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-danger" title="Reject"><i class="bi bi-x"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>No pending orders to release.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .nav-tabs .nav-link {
+        color: #1A3C34;
+    }
+    .nav-tabs .nav-link.active {
+        background-color: #F28C38;
+        color: white;
+    }
+</style>
+
+<script>
+function previewImage(event) {
+    const imagePreview = document.getElementById('imagePreview');
+    imagePreview.style.display = 'block';
+    imagePreview.src = URL.createObjectURL(event.target.files[0]);
+}
+
+function addBreakdown() {
+    const container = document.getElementById('breakdown-container');
+    const entry = document.createElement('div');
+    entry.className = 'breakdown-entry row mb-3';
+    entry.innerHTML = `
+        <div class="col-md-4">
+            <label class="form-label">Color</label>
+            <input type="text" class="form-control" name="color[]" required>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Size</label>
+            <input type="text" class="form-control" name="size[]" required>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Quantity</label>
+            <input type="number" class="form-control" name="quantity[]" required>
+        </div>
+    `;
+    container.appendChild(entry);
+}
+</script>
+{% endblock %}

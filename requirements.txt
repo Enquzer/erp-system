@@ -1,0 +1,6 @@
+Flask
+Werkzeug
+sqlite3
+Pillow
+pandas
+reportlab

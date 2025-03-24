@@ -1,0 +1,17 @@
+<!-- templates/home.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="text-center mt-5">
+    <h1 style="color: #1A3C34;">Welcome to Carement ERP System</h1>
+    <p>Connecting Carement Factory and Shop for seamless inventory management.</p>
+    <div class="mt-4">
+        {% if session.user_id %}
+            <p>Logged in as {{ session.role }} user.</p>
+            <a href="{{ url_for('logout') }}" class="btn btn-secondary" style="background-color: #5B6D5B; border: none;">Logout</a>
+        {% else %}
+            <a href="{{ url_for('login') }}" class="btn btn-primary" style="background-color: #F28C38; border: none;">Login</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
