@@ -1,75 +1,219 @@
+/* static/css/style.css */
+body {
+    font-family: 'Roboto', Arial, sans-serif;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.table img {
+    max-height: 100px;
+}
+
+/* Ensure logo maintains aspect ratio */
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Style for the login card */
+.card {
+    border-radius: 15px;
+}
+
+/* Navbar toggler icon color for visibility */
+.navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255, 255, 255, 1)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Light Mode */
 body.light-mode {
-    font-family: Arial, sans-serif;
-    background-color: #f8f9fa;
-    color: #333;
+    background-color: #ffffffb1;
+    color: #333333; /* Darker gray for better readability */
 }
 
-body.dark-mode {
-    background-color: #333;
-    color: #f8f9fa;
-}
-
-.navbar {
+body.light-mode .navbar {
     background-color: #1A3C34 !important;
 }
 
-.navbar-brand {
-    color: #FFFFFF !important;
+body.light-mode .nav-link {
+    color: #a0630f !important;
 }
 
+body.light-mode .alert {
+    background-color: #f8f9fa;
+    color: #024253;
+}
+
+body.light-mode h2,
+body.light-mode h3,
+body.light-mode h4,
+body.light-mode label,
+body.light-mode p {
+    color: #1A3C34 !important; /* Use Carement green for headings and labels */
+}
+
+/* Dark Mode */
+body.dark-mode {
+    background-color: #212529;
+    color: #ffffff;
+}
+
+body.dark-mode .navbar {
+    background-color: #1A3C34 !important;
+}
+
+body.dark-mode .nav-link {
+    color: #ffffff !important;
+}
+
+body.dark-mode .alert {
+    background-color: #343a40;
+    color: #ffffff;
+}
+
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode label,
+body.dark-mode p {
+    color: #ffffff !important;
+}
+
+/* Ensure theme toggle icon is visible */
+#theme-toggle i {
+    font-size: 1.2rem;
+}
+
+/* Responsive Styles */
+
+/* Navbar logo size for different screens */
+.navbar-brand img {
+    height: 40px;
+}
+
+@media (max-width: 576px) {
+    .navbar-brand img {
+        height: 30px;
+    }
+}
+
+/* Navbar links spacing and font size */
 .nav-link {
-    color: #FFFFFF !important;
+    padding: 0.5rem 1rem !important;
+    font-size: 1rem;
 }
 
-.nav-link:hover {
-    color: #F28C38 !important;
+@media (max-width: 576px) {
+    .nav-link {
+        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem !important;
+    }
 }
 
-h2, h5 {
-    color: #1A3C34;
+/* Container padding for mobile */
+.container {
+    padding-left: 15px;
+    padding-right: 15px;
 }
 
-.btn-primary {
-    background-color: #F28C38 !important;
-    border: none !important;
+@media (max-width: 576px) {
+    .container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
 }
 
-.btn-primary:hover {
-    background-color: #d9772f !important;
-}
-
-.btn-secondary {
-    background-color: #5B6D5B !important;
-    border: none !important;
-}
-
-.btn-secondary:hover {
-    background-color: #4a5a4a !important;
-}
-
+/* Adjust login card for mobile */
 .card {
-    border: 1px solid #5B6D5B;
+    max-width: 400px;
+    width: 100%;
 }
 
-.alert-success {
-    background-color: #1A3C34;
-    color: #FFFFFF;
+@media (max-width: 576px) {
+    .card {
+        max-width: 100%;
+        margin: 0 10px;
+    }
 }
 
-.alert-error {
+/* Ensure content is readable on mobile */
+h2 {
+    font-size: 1.5rem;
+}
+
+@media (max-width: 576px) {
+    h2 {
+        font-size: 1.25rem;
+    }
+}
+
+p {
+    font-size: 1rem;
+}
+
+@media (max-width: 576px) {
+    p {
+        font-size: 0.9rem;
+    }
+}
+
+/* Touch-friendly input fields */
+.form-control {
+    padding: 10px 15px;
+    font-size: 1rem;
+}
+
+@media (max-width: 576px) {
+    .form-control {
+        font-size: 0.9rem;
+        padding: 8px 12px;
+    }
+}
+
+/* Touch-friendly button */
+.btn {
+    padding: 12px 20px;
+    font-size: 1rem;
+}
+
+@media (max-width: 576px) {
+    .btn {
+        font-size: 0.9rem;
+        padding: 10px 15px;
+    }
+}
+
+/* Specific styles for Shop View and Factory View */
+.shop-view h2,
+.factory-view h2 {
+    margin-bottom: 1.5rem;
+}
+
+.shop-view .btn,
+.factory-view .btn {
     background-color: #F28C38;
-    color: #333333;
+    border: none;
+    border-radius: 8px;
+    transition: background-color 0.3s ease, transform 0.1s ease;
 }
 
-.table {
-    background-color: inherit;
+.shop-view .btn:hover,
+.factory-view .btn:hover {
+    background-color: #e07b30;
 }
 
-.dark-mode .table {
-    background-color: #444;
-    color: #f8f9fa;
+.shop-view .btn:active,
+.factory-view .btn:active {
+    transform: scale(0.98);
 }
 
-.dark-mode .table-bordered {
-    border-color: #666;
+.shop-view .form-control,
+.factory-view .form-control {
+    border-radius: 8px;
+    transition: border-color 0.3s ease;
+}
+
+.shop-view .form-control:focus,
+.factory-view .form-control:focus {
+    border-color: #1A3C34;
+    box-shadow: 0 0 5px rgba(26, 60, 52, 0.3);
 }
