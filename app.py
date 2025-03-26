@@ -7,7 +7,7 @@ from scripts.export_order import export_to_pdf, export_to_excel
 from image_utils import resize_image
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24).hex()  # Secure random secret key
+app.secret_key = os.urandom(24).hex()
 app.config['UPLOAD_FOLDER'] = 'static/images/products'
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -57,8 +57,14 @@ def factory_upload():
         resized_images = {}
         for product in products:
             if product['product_image']:
-                resized_path = resize_image(os.path.join('static', product['product_image']))
-                resized_images[product['product_id']] = resized_path[7:] if resized_path else None
+                try:
+                    resized_path = resize_image(os.path.join('static', product['product_image']))
+                    resized_images[product['product_id']] = resized_path[7:] if resized_path else None
+                except Exception as e:
+                    flash(f"Error resizing image for product {product['product_code']}: {e}", 'error')
+                    resized_images[product['product_id']] = None
+            else:
+                resized_images[product['product_id']] = None
 
             c.execute('SELECT * FROM inventory_breakdown WHERE product_id = ?', (product['product_id'],))
             inventory[product['product_id']] = [dict(row) for row in c.fetchall()]
@@ -69,18 +75,23 @@ def factory_upload():
 
             color_groups[product['product_id']] = {}
             for inv in inventory[product['product_id']]:
-                color = inv['color']
+                color = inv['color'] if inv['color'] is not None else 'Unknown'
                 if color not in color_groups[product['product_id']]:
                     color_groups[product['product_id']][color] = []
-                color_groups[product['product_id']][color].append({'size': inv['size'], 'quantity': inv['quantity']})
+                color_groups[product['product_id']][color].append({
+                    'size': inv['size'] if inv['size'] is not None else 'Unknown',
+                    'quantity': inv['quantity'] if inv['quantity'] is not None else 0
+                })
 
             balance = {}
             for inv in inventory[product['product_id']]:
-                color = inv['color']
-                size = inv['size']
-                produced_qty = inv['quantity']
-                sent_qty = sum(order['quantity'] for order in orders.get(product['product_id'], []) 
-                              if order['color'] == color and order['size'] == size)
+                color = inv['color'] if inv['color'] is not None else 'Unknown'
+                size = inv['size'] if inv['size'] is not None else 'Unknown'
+                produced_qty = inv['quantity'] if inv['quantity'] is not None else 0
+                sent_qty = sum(
+                    order['quantity'] for order in orders.get(product['product_id'], [])
+                    if order['color'] == color and order['size'] == size
+                )
                 balance[(color, size)] = produced_qty - sent_qty
             balances[product['product_id']] = balance
 
@@ -129,7 +140,11 @@ def factory_upload():
             uploaded_inventory = [dict(row) for row in c.fetchall()]
 
             if uploaded_product['product_image']:
-                resized_images[product_id] = resize_image(os.path.join('static', uploaded_product['product_image']))[7:]
+                try:
+                    resized_images[product_id] = resize_image(os.path.join('static', uploaded_product['product_image']))[7:]
+                except Exception as e:
+                    flash(f"Error resizing uploaded image: {e}", 'error')
+                    resized_images[product_id] = None
 
             conn.commit()
             flash('Product uploaded successfully!', 'success')
@@ -143,6 +158,90 @@ def factory_upload():
                               balances=balances, color_groups=color_groups, resized_images=resized_images, 
                               uploaded_product=uploaded_product, uploaded_inventory=uploaded_inventory, 
                               pending_orders=pending_orders, search_query=search_query)
+    except sqlite3.Error as e:
+        flash(f"Database error: {e}", 'error')
+        conn.close()
+        return redirect(url_for('factory_upload'))
+    except Exception as e:
+        flash(f"Unexpected error: {e}", 'error')
+        conn.close()
+        return redirect(url_for('factory_upload'))
+
+@app.route('/delete_inventory/<int:inventory_id>', methods=['GET'])
+def delete_inventory(inventory_id):
+    if 'user_id' not in session or session.get('role') != 'factory':
+        flash('Please login as factory admin!', 'error')
+        return redirect(url_for('login'))
+    
+    conn = get_db()
+    if not conn:
+        return redirect(url_for('index'))
+    c = conn.cursor()
+    
+    try:
+        c.execute('SELECT product_id, quantity FROM inventory_breakdown WHERE id = ?', (inventory_id,))
+        inventory = c.fetchone()
+        if not inventory:
+            flash('Inventory record not found!', 'error')
+            return redirect(url_for('factory_upload'))
+
+        product_id = inventory['product_id']
+        quantity_to_remove = inventory['quantity']
+
+        c.execute('DELETE FROM inventory_breakdown WHERE id = ?', (inventory_id,))
+
+        c.execute('UPDATE products SET produced_quantity = produced_quantity - ? WHERE product_id = ?', 
+                  (quantity_to_remove, product_id))
+
+        conn.commit()
+        flash('Inventory record deleted successfully!', 'success')
+    except sqlite3.Error as e:
+        flash(f"Database error: {e}", 'error')
+    finally:
+        conn.close()
+    return redirect(url_for('factory_upload'))
+
+@app.route('/edit_inventory/<int:inventory_id>', methods=['GET', 'POST'])
+def edit_inventory(inventory_id):
+    if 'user_id' not in session or session.get('role') != 'factory':
+        flash('Please login as factory admin!', 'error')
+        return redirect(url_for('login'))
+    
+    conn = get_db()
+    if not conn:
+        return redirect(url_for('index'))
+    c = conn.cursor()
+    
+    try:
+        c.execute('SELECT * FROM inventory_breakdown WHERE id = ?', (inventory_id,))
+        inventory = c.fetchone()
+        if not inventory:
+            flash('Inventory record not found!', 'error')
+            return redirect(url_for('factory_upload'))
+
+        c.execute('SELECT * FROM products WHERE product_id = ?', (inventory['product_id'],))
+        product = c.fetchone()
+
+        if request.method == 'POST':
+            color = request.form['color']
+            size = request.form['size']
+            quantity = int(request.form['quantity'])
+
+            old_quantity = inventory['quantity']
+            quantity_diff = quantity - old_quantity
+
+            c.execute('UPDATE inventory_breakdown SET color = ?, size = ?, quantity = ? WHERE id = ?', 
+                      (color, size, quantity, inventory_id))
+
+            c.execute('UPDATE products SET produced_quantity = produced_quantity + ? WHERE product_id = ?', 
+                      (quantity_diff, inventory['product_id']))
+
+            conn.commit()
+            flash('Inventory record updated successfully!', 'success')
+            return redirect(url_for('factory_upload'))
+
+        conn.close()
+        return render_template('edit_inventory.html', inventory=inventory, product=product)
     except sqlite3.Error as e:
         flash(f"Database error: {e}", 'error')
         conn.close()
@@ -174,8 +273,14 @@ def factory_products():
 
         for product in products:
             if product['product_image']:
-                resized_path = resize_image(os.path.join('static', product['product_image']))
-                resized_images[product['product_id']] = resized_path[7:] if resized_path else None
+                try:
+                    resized_path = resize_image(os.path.join('static', product['product_image']))
+                    resized_images[product['product_id']] = resized_path[7:] if resized_path else None
+                except Exception as e:
+                    flash(f"Error resizing image for product {product['product_code']}: {e}", 'error')
+                    resized_images[product['product_id']] = None
+            else:
+                resized_images[product['product_id']] = None
 
             c.execute('SELECT * FROM inventory_breakdown WHERE product_id = ?', (product['product_id'],))
             inventory[product['product_id']] = [dict(row) for row in c.fetchall()]
@@ -186,18 +291,23 @@ def factory_products():
 
             color_groups[product['product_id']] = {}
             for inv in inventory[product['product_id']]:
-                color = inv['color']
+                color = inv['color'] if inv['color'] is not None else 'Unknown'
                 if color not in color_groups[product['product_id']]:
                     color_groups[product['product_id']][color] = []
-                color_groups[product['product_id']][color].append({'size': inv['size'], 'quantity': inv['quantity']})
+                color_groups[product['product_id']][color].append({
+                    'size': inv['size'] if inv['size'] is not None else 'Unknown',
+                    'quantity': inv['quantity'] if inv['quantity'] is not None else 0
+                })
 
             balance = {}
             for inv in inventory[product['product_id']]:
-                color = inv['color']
-                size = inv['size']
-                produced_qty = inv['quantity']
-                sent_qty = sum(order['quantity'] for order in orders.get(product['product_id'], []) 
-                              if order['color'] == color and order['size'] == size and order['status'] != 'Cancelled')
+                color = inv['color'] if inv['color'] is not None else 'Unknown'
+                size = inv['size'] if inv['size'] is not None else 'Unknown'
+                produced_qty = inv['quantity'] if inv['quantity'] is not None else 0
+                sent_qty = sum(
+                    order['quantity'] for order in orders.get(product['product_id'], [])
+                    if order['color'] == color and order['size'] == size and order['status'] != 'Cancelled'
+                )
                 balance[(color, size)] = produced_qty - sent_qty
             balances[product['product_id']] = balance
 
@@ -209,6 +319,28 @@ def factory_products():
         flash(f"Database error: {e}", 'error')
         conn.close()
         return redirect(url_for('factory_products'))
+
+@app.route('/delete_product/<int:product_id>')
+def delete_product(product_id):
+    if 'user_id' not in session or session.get('role') != 'factory':
+        flash('Please login as factory admin!', 'error')
+        return redirect(url_for('login'))
+    
+    conn = get_db()
+    if not conn:
+        return redirect(url_for('index'))
+    c = conn.cursor()
+    
+    try:
+        c.execute('DELETE FROM inventory_breakdown WHERE product_id = ?', (product_id,))
+        c.execute('DELETE FROM products WHERE product_id = ?', (product_id,))
+        conn.commit()
+        flash('Product deleted successfully!', 'success')
+    except sqlite3.Error as e:
+        flash(f"Database error: {e}", 'error')
+    finally:
+        conn.close()
+    return redirect(url_for('factory_products'))
 
 @app.route('/shop', methods=['GET', 'POST'])
 def shop_view():
@@ -246,6 +378,14 @@ def shop_view():
             comments = request.form['comments']
             order_number = f"ORD-{uuid.uuid4().hex[:8]}"
 
+            # Check if an active order already exists for this product, color, and size
+            c.execute('SELECT * FROM orders WHERE product_id = ? AND color = ? AND size = ? AND status IN ("Pending", "Released")', 
+                      (product_id, color, size))
+            existing_order = c.fetchone()
+            if existing_order:
+                flash('An active order already exists for this product, color, and size. Please wait until the current order is completed.', 'error')
+                return redirect(url_for('shop_view', tab='place-order', product_id=product_id, color=color, size=size))
+
             c.execute('SELECT quantity FROM inventory_breakdown WHERE product_id = ? AND color = ? AND size = ?', (product_id, color, size))
             stock = c.fetchone()
             produced_quantity = stock['quantity'] if stock else 0
@@ -258,7 +398,7 @@ def shop_view():
             available_quantity = produced_quantity - total_ordered
             if available_quantity < quantity:
                 flash(f"Not enough stock for {color} {size}. Available: {available_quantity}. Please place a new product order.", 'error')
-                return redirect(url_for('shop_view'))
+                return redirect(url_for('shop_view', tab='place-order', product_id=product_id, color=color, size=size))
             
             c.execute('''INSERT INTO orders (order_number, product_id, color, size, quantity, order_date, expected_delivery_date, is_urgent, comments, status)
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
@@ -285,6 +425,34 @@ def shop_view():
 
         conn.close()
         return render_template('shop_view.html', products=products, inventory=inventory, orders=orders, search_query=search_query)
+    except sqlite3.Error as e:
+        flash(f"Database error: {e}", 'error')
+        conn.close()
+        return redirect(url_for('shop_view'))
+
+@app.route('/order_status/<int:product_id>/<color>/<size>')
+def order_status(product_id, color, size):
+    if 'user_id' not in session or session.get('role') != 'shop':
+        flash('Please login as shop admin!', 'error')
+        return redirect(url_for('login'))
+    
+    conn = get_db()
+    if not conn:
+        return redirect(url_for('index'))
+    c = conn.cursor()
+    
+    try:
+        c.execute('SELECT * FROM products WHERE product_id = ?', (product_id,))
+        product = c.fetchone()
+        if not product:
+            flash('Product not found!', 'error')
+            return redirect(url_for('shop_view'))
+
+        c.execute('SELECT * FROM orders WHERE product_id = ? AND color = ? AND size = ?', (product_id, color, size))
+        orders = c.fetchall()
+
+        conn.close()
+        return render_template('order_status.html', product=product, orders=orders, color=color, size=size)
     except sqlite3.Error as e:
         flash(f"Database error: {e}", 'error')
         conn.close()
@@ -473,7 +641,6 @@ def dashboard():
         conn.close()
         return redirect(url_for('dashboard'))
 
-# Export Routes (Adding error handling)
 @app.route('/factory/upload/export/pdf')
 def factory_upload_export_pdf():
     conn = get_db()
@@ -594,6 +761,12 @@ def shop_export_pdf(tab):
             c.execute('SELECT o.*, p.product_name, p.product_description FROM orders o LEFT JOIN products p ON o.product_id = p.product_id LIMIT 1')
         elif tab == 'place-new-order':
             c.execute('SELECT o.*, p.product_name FROM orders o LEFT JOIN products p ON o.product_id = p.product_id WHERE o.product_id IS NULL LIMIT 1')
+        elif tab == 'order-status':
+            product_id = request.args.get('product_id')
+            color = request.args.get('color')
+            size = request.args.get('size')
+            c.execute('SELECT o.*, p.product_name FROM orders o LEFT JOIN products p ON o.product_id = p.product_id WHERE o.product_id = ? AND o.color = ? AND o.size = ? LIMIT 1', 
+                      (product_id, color, size))
         data = c.fetchone()
         if not data:
             flash('No data to export!', 'error')
@@ -627,6 +800,12 @@ def shop_export_excel(tab):
             c.execute('SELECT o.*, p.product_name, p.product_description FROM orders o LEFT JOIN products p ON o.product_id = p.product_id LIMIT 1')
         elif tab == 'place-new-order':
             c.execute('SELECT o.*, p.product_name FROM orders o LEFT JOIN products p ON o.product_id = p.product_id WHERE o.product_id IS NULL LIMIT 1')
+        elif tab == 'order-status':
+            product_id = request.args.get('product_id')
+            color = request.args.get('color')
+            size = request.args.get('size')
+            c.execute('SELECT o.*, p.product_name FROM orders o LEFT JOIN products p ON o.product_id = p.product_id WHERE o.product_id = ? AND o.color = ? AND o.size = ? LIMIT 1', 
+                      (product_id, color, size))
         data = c.fetchone()
         if not data:
             flash('No data to export!', 'error')
@@ -692,4 +871,4 @@ def confirm_order_export_excel(order_number):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=True)

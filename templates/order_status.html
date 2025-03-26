@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-center mb-0" style="color: #1A3C34;">Order Status for {{ product.product_name }} ({{ color }}, {{ size }})</h2>
+    <div>
+        <a href="{{ url_for('shop_export_pdf', tab='order-status', product_id=product.product_id, color=color, size=size) }}" class="btn btn-primary export-btn" style="background-color: #F28C38; border: none;">
+            <i class="bi bi-file-earmark-pdf"></i> PDF
+        </a>
+        <a href="{{ url_for('shop_export_excel', tab='order-status', product_id=product.product_id, color=color, size=size) }}" class="btn btn-secondary export-btn" style="background-color: #5B6D5B; border: none;">
+            <i class="bi bi-file-earmark-excel"></i> Excel
+        </a>
+    </div>
+</div>
+<div class="table-responsive">
+    <table class="table table-bordered table-sm">
+        <thead>
+            <tr>
+                <th>Order Number</th>
+                <th>Quantity</th>
+                <th>Order Date</th>
+                <th>Expected Delivery</th>
+                <th>Received Date</th>
+                <th>Status</th>
+                <th>Comments</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td>{{ order.order_number }}</td>
+                <td>{{ order.quantity }}</td>
+                <td>{{ order.order_date }}</td>
+                <td>{{ order.expected_delivery_date }}</td>
+                <td>{{ order.received_date or 'N/A' }}</td>
+                <td>
+                    {% if order.status == 'Pending' %}
+                        <i class="bi bi-hourglass-split text-warning" title="Pending"></i> Pending
+                    {% elif order.status == 'Released' %}
+                        <i class="bi bi-truck text-info" title="In Transit"></i> In Transit
+                    {% elif order.status == 'Received' %}
+                        <i class="bi bi-check-circle text-success" title="Delivered"></i> Delivered
+                    {% else %}
+                        {{ order.status }}
+                    {% endif %}
+                </td>
+                <td>{{ order.adjustment_comments or order.comments or 'N/A' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center">No orders found for this product, color, and size.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<a href="{{ url_for('shop_view') }}" class="btn btn-secondary" style="background-color: #5B6D5B; border: none;">Back to Shop View</a>
+{% endblock %}

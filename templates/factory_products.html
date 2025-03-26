@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h2 style="color: #1A3C34;">Factory Products</h2>
+<h2 class="text-center mb-4" style="color: #1A3C34;">Factory Products</h2>
 <div class="d-flex justify-content-between mb-3">
     <form method="GET" action="{{ url_for('factory_products') }}" class="d-flex">
         <input type="text" class="form-control me-2" name="search" placeholder="Search by Product Code" value="{{ search_query or '' }}">
@@ -19,18 +19,14 @@
             <tr>
                 <th>Image</th>
                 <th>Product Name</th>
-                <th>Product Code</th>
                 <th>Category</th>
-                <th>Color</th>
-                <th>Size</th>
                 <th>Produced Quantity</th>
-                <th>Sent to Shop</th>
-                <th>Balance</th>
+                <th>Released Quantity</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for product in products %}
-            {% for inv in inventory[product.product_id] %}
             <tr>
                 <td>
                     {% if product.product_image %}
@@ -39,16 +35,46 @@
                     <p>No image</p>
                     {% endif %}
                 </td>
-                <td>{{ product.product_name }}</td>
-                <td>{{ product.product_code }}</td>
+                <td>{{ product.product_name }} (Code: {{ product.product_code }})</td>
                 <td>{{ product.category }}</td>
+                <td>{{ product.produced_quantity }}</td>
+                <td>{{ product.released_quantity }}</td>
+                <td>
+                    <a href="{{ url_for('delete_product', product_id=product.product_id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this product?');">
+                        <i class="bi bi-trash"></i>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<h3 style="color: #1A3C34;">Inventory Breakdown</h3>
+<div class="table-responsive">
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Product Name</th>
+                <th>Color</th>
+                <th>Size</th>
+                <th>Quantity</th>
+                <th>Sent to Shop</th>
+                <th>Balance</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            {% for inv in inventory[product.product_id] %}
+            <tr>
+                <td>{{ product.product_name }} (Code: {{ product.product_code }})</td>
                 <td>{{ inv.color }}</td>
                 <td>{{ inv.size }}</td>
                 <td>{{ inv.quantity }}</td>
                 <td>
                     {% set sent_qty = 0 %}
                     {% for order in orders.get(product.product_id, []) %}
-                        {% if order.color == inv.color and order.size == inv.size and order.status != 'Cancelled' %}
+                        {% if order.color == inv.color and order.size == inv.size %}
                             {% set sent_qty = sent_qty + order.quantity %}
                         {% endif %}
                     {% endfor %}
@@ -57,8 +83,6 @@
                 <td>{{ balances[product.product_id][(inv.color, inv.size)] | default('N/A') }}</td>
             </tr>
             {% endfor %}
-            {% else %}
-            <tr><td colspan="9" class="text-center">No products available.</td></tr>
             {% endfor %}
         </tbody>
     </table>

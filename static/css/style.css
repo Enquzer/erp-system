@@ -8,26 +8,23 @@ body {
     max-height: 100px;
 }
 
-/* Ensure logo maintains aspect ratio */
 img {
     max-width: 100%;
     height: auto;
 }
 
-/* Style for the login card */
 .card {
     border-radius: 15px;
 }
 
-/* Navbar toggler icon color for visibility */
 .navbar-toggler-icon {
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255, 255, 255, 1)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
 }
 
 /* Light Mode */
 body.light-mode {
-    background-color: #ffffffb1;
-    color: #333333; /* Darker gray for better readability */
+    background-color: #ffffff;
+    color: #333333;
 }
 
 body.light-mode .navbar {
@@ -35,12 +32,12 @@ body.light-mode .navbar {
 }
 
 body.light-mode .nav-link {
-    color: #a0630f !important;
+    color: #ffffff !important;
 }
 
 body.light-mode .alert {
     background-color: #f8f9fa;
-    color: #024253;
+    color: #333333;
 }
 
 body.light-mode h2,
@@ -48,7 +45,7 @@ body.light-mode h3,
 body.light-mode h4,
 body.light-mode label,
 body.light-mode p {
-    color: #1A3C34 !important; /* Use Carement green for headings and labels */
+    color: #1A3C34 !important;
 }
 
 /* Dark Mode */
@@ -78,14 +75,11 @@ body.dark-mode p {
     color: #ffffff !important;
 }
 
-/* Ensure theme toggle icon is visible */
 #theme-toggle i {
     font-size: 1.2rem;
 }
 
 /* Responsive Styles */
-
-/* Navbar logo size for different screens */
 .navbar-brand img {
     height: 40px;
 }
@@ -96,7 +90,6 @@ body.dark-mode p {
     }
 }
 
-/* Navbar links spacing and font size */
 .nav-link {
     padding: 0.5rem 1rem !important;
     font-size: 1rem;
@@ -109,7 +102,6 @@ body.dark-mode p {
     }
 }
 
-/* Container padding for mobile */
 .container {
     padding-left: 15px;
     padding-right: 15px;
@@ -122,7 +114,6 @@ body.dark-mode p {
     }
 }
 
-/* Adjust login card for mobile */
 .card {
     max-width: 400px;
     width: 100%;
@@ -135,7 +126,6 @@ body.dark-mode p {
     }
 }
 
-/* Ensure content is readable on mobile */
 h2 {
     font-size: 1.5rem;
 }
@@ -156,7 +146,6 @@ p {
     }
 }
 
-/* Touch-friendly input fields */
 .form-control {
     padding: 10px 15px;
     font-size: 1rem;
@@ -169,7 +158,6 @@ p {
     }
 }
 
-/* Touch-friendly button */
 .btn {
     padding: 12px 20px;
     font-size: 1rem;
@@ -182,7 +170,6 @@ p {
     }
 }
 
-/* Specific styles for Shop View and Factory View */
 .shop-view h2,
 .factory-view h2 {
     margin-bottom: 1.5rem;
@@ -216,4 +203,25 @@ p {
 .factory-view .form-control:focus {
     border-color: #1A3C34;
     box-shadow: 0 0 5px rgba(26, 60, 52, 0.3);
+}
+
+/* Styles for Delete and Modify Icons in Factory Upload (Inventory Tab) */
+.tab-pane#inventory .btn-sm {
+    padding: 6px 10px; /* Larger tap target for touch */
+    font-size: 0.9rem;
+}
+
+.tab-pane#inventory .btn-sm i {
+    font-size: 1rem;
+}
+
+@media (max-width: 576px) {
+    .tab-pane#inventory .btn-sm {
+        padding: 4px 8px;
+        font-size: 0.8rem;
+    }
+
+    .tab-pane#inventory .btn-sm i {
+        font-size: 0.9rem;
+    }
 }

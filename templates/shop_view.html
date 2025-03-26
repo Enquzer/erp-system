@@ -2,9 +2,9 @@
 
 {% block content %}
 <h2 style="color: #1A3C34;">Shop View</h2>
-<div class="d-flex justify-content-between mb-3">
-    <form method="GET" action="{{ url_for('shop_view') }}" class="d-flex">
-        <input type="text" class="form-control me-2" name="search" placeholder="Search by Product Code" value="{{ search_query or '' }}">
+<div class="d-flex justify-content-between mb-3 flex-column flex-md-row">
+    <form method="GET" action="{{ url_for('shop_view') }}" class="d-flex mb-2 mb-md-0">
+        <input type="text" class="form-control me-1" name="search" placeholder="Search by Product Code" value="{{ search_query or '' }}">
         <button type="submit" class="btn btn-primary" style="background-color: #F28C38; border: none;">Search</button>
     </form>
 </div>
@@ -31,7 +31,7 @@
             <a href="{{ url_for('shop_export_excel', tab='available') }}" class="btn btn-link"><i class="bi bi-file-earmark-excel"></i></a>
         </div>
         <div class="table-responsive">
-            <table class="table table-bordered">
+            <table class="table table-bordered table-sm">
                 <thead>
                     <tr>
                         <th>Product Code</th>
@@ -44,7 +44,8 @@
                         <th>Color</th>
                         <th>Produced Quantity</th>
                         <th>Available Stock</th>
-                        <th>Status</th>
+                        <th>Order Status</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -76,34 +77,65 @@
                                 {{ inv.quantity - sent_qty }}
                             </td>
                             <td>
-                                {% set status = 'Available' %}
-                                {% set ordered = false %}
-                                {% set in_transit = false %}
-                                {% set delivered = false %}
-                                {% for order in orders %}
-                                    {% if order.product_id == product.product_id and order.color == inv.color and order.size == inv.size %}
-                                        {% if order.status == 'Pending' %}
-                                            {% set ordered = true %}
-                                            {% set status = 'Ordered' %}
-                                        {% elif order.status == 'Released' %}
-                                            {% set in_transit = true %}
-                                            {% set status = 'In Transit' %}
-                                        {% elif order.status == 'Received' %}
-                                            {% set delivered = true %}
-                                            {% set status = 'Delivered' %}
-                                        {% endif %}
+                                {% set can_order = true %}
+                                {% set status_icon = '' %}
+                                {% set status_text = 'Available' %}
+                                {% set available_stock = inv.quantity - sent_qty %}
+                                {% set matching_orders = orders|selectattr('product_id', 'equalto', product.product_id)|selectattr('color', 'equalto', inv.color)|selectattr('size', 'equalto', inv.size)|selectattr('status', 'ne', 'Cancelled')|list %}
+                                {% set latest_order = matching_orders|sort(attribute='order_date', reverse=true)|first %}
+                                {% if available_stock <= 0 %}
+                                    {% set can_order = false %}
+                                    {% set status_icon = '<i class="bi bi-exclamation-triangle text-danger me-1" title="Stock Finished"></i>' %}
+                                    {% set status_text = 'Stock Finished' %}
+                                {% elif latest_order %}
+                                    {% if latest_order.status == 'Pending' %}
+                                        {% set can_order = false %}
+                                        {% set status_icon = '<i class="bi bi-hourglass-split text-warning me-1" title="Pending"></i>' %}
+                                        {% set status_text = 'Pending' %}
+                                    {% elif latest_order.status == 'Released' %}
+                                        {% set can_order = false %}
+                                        {% set status_icon = '<i class="bi bi-truck text-info me-1" title="In Transit"></i>' %}
+                                        {% set status_text = 'In Transit' %}
+                                    {% elif latest_order.status == 'Received' %}
+                                        {% set can_order = true %}
+                                        {% set status_icon = '<i class="bi bi-check-circle text-success me-1" title="Delivered"></i>' %}
+                                        {% set status_text = 'Delivered' %}
                                     {% endif %}
-                                {% endfor %}
-                                {% if ordered %}<i class="bi bi-cart text-warning" title="Ordered"></i>{% endif %}
-                                {% if in_transit %}<i class="bi bi-truck text-info" title="In Transit"></i>{% endif %}
-                                {% if delivered %}<i class="bi bi-check-circle text-success" title="Delivered"></i>{% endif %}
-                                {% if not (ordered or in_transit or delivered) %}<i class="bi bi-box text-primary" title="Available"></i>{% endif %}
-                                {{ status }}
+                                {% else %}
+                                    {% if available_stock > 0 %}
+                                        {% set status_icon = '<i class="bi bi-check-circle-fill me-1 available-icon" style="color: #28a745;" title="Available to Order"></i>' %}
+                                        {% set status_text = 'Available' %}
+                                    {% endif %}
+                                {% endif %}
+                                <span class="d-flex align-items-center">{{ status_icon | safe }}{{ status_text }}</span>
+                            </td>
+                            <td>
+                                {% if can_order and available_stock > 0 %}
+                                <a href="{{ url_for('shop_view', tab='place-order', product_id=product.product_id, color=inv.color, size=inv.size) }}" 
+                                   class="btn btn-sm btn-primary me-1 order-now-btn" 
+                                   style="background-color: #F28C38; border: none;" 
+                                   title="Order Now"
+                                   data-product-id="{{ product.product_id }}"
+                                   data-color="{{ inv.color }}"
+                                   data-size="{{ inv.size }}">
+                                    <i class="bi bi-cart"></i>
+                                </a>
+                                {% else %}
+                                <button class="btn btn-sm btn-secondary me-1" disabled title="Cannot Order">
+                                    <i class="bi bi-cart"></i>
+                                </button>
+                                {% endif %}
+                                <a href="{{ url_for('order_status', product_id=product.product_id, color=inv.color, size=inv.size) }}" 
+                                   class="btn btn-sm btn-info" 
+                                   style="background-color: #007bff; border: none;" 
+                                   title="Track Status">
+                                    <i class="bi bi-eye"></i>
+                                </a>
                             </td>
                         </tr>
                         {% endfor %}
                     {% else %}
-                        <tr><td colspan="11" class="text-center">No products available.</td></tr>
+                        <tr><td colspan="12" class="text-center">No products available.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -120,21 +152,28 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label for="product_id" class="form-label">Select Product</label>
-                    <select class="form-select" id="product_id" name="product_id" required onchange="populateStock()">
+                    <select class="form-select" id="product_id" name="product_id" required onchange="populateOptions()">
                         {% for product in products %}
-                            <option value="{{ product.product_id }}" data-inventory='{{ inventory[product.product_id]|tojson }}'>{{ product.product_name }} ({{ product.product_code }})</option>
+                            <option value="{{ product.product_id }}" data-inventory='{{ inventory[product.product_id]|tojson }}' {% if product.product_id == request.args.get('product_id')|int %}selected{% endif %}>
+                                {{ product.product_name }} ({{ product.product_code }})
+                            </option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label for="color" class="form-label">Color</label>
-                    <input type="text" class="form-control" id="color" name="color" required>
+                    <label class="form-label">Color</label>
+                    <select class="form-select" id="color" name="color" required>
+                        <option value="">Select Color</option>
+                    </select>
                 </div>
             </div>
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label for="size" class="form-label">Size</label>
-                    <input type="text" class="form-control" id="size" name="size" required>
+                    <label class="form-label">Size</label>
+                    <div id="size-checkboxes" class="d-flex flex-wrap gap-2">
+                        <!-- Sizes will be populated by JavaScript -->
+                    </div>
+                    <input type="hidden" id="size" name="size" required>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label for="quantity" class="form-label">Quantity (Stock: <span id="stock">N/A</span>)</label>
@@ -172,7 +211,7 @@
             <a href="{{ url_for('shop_export_excel', tab='follow-up') }}" class="btn btn-link"><i class="bi bi-file-earmark-excel"></i></a>
         </div>
         <div class="table-responsive">
-            <table class="table table-bordered">
+            <table class="table table-bordered table-sm">
                 <thead>
                     <tr>
                         <th>Order Number</th>
@@ -222,7 +261,6 @@
                             {% endif %}
                         </td>
                     </tr>
-                    <!-- Edit Modal -->
                     <div class="modal fade" id="editModal{{ order.order_number }}" tabindex="-1" aria-labelledby="editModalLabel{{ order.order_number }}" aria-hidden="true">
                         <div class="modal-dialog">
                             <div class="modal-content">
@@ -326,16 +364,107 @@
 
 <style>
     .nav-tabs .nav-link {
-        color: #1A3C34;
+        color: #000000; /* Black font color for tabs in light mode */
     }
     .nav-tabs .nav-link.active {
         background-color: #F28C38;
         color: white;
     }
+    .table th, .table td {
+        vertical-align: middle;
+    }
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.9rem;
+        }
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+        }
+    }
+    .size-checkbox {
+        margin-right: 10px;
+    }
+    .status-container {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    /* Pulse animation for the Available icon */
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        50% {
+            transform: scale(1.2);
+            opacity: 0.7;
+        }
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+    .available-icon {
+        animation: pulse 1.5s infinite;
+    }
 </style>
 
 <script>
-function populateStock() {
+function populateOptions() {
+    const select = document.getElementById('product_id');
+    const colorSelect = document.getElementById('color');
+    const sizeContainer = document.getElementById('size-checkboxes');
+    const stockSpan = document.getElementById('stock');
+    const selectedOption = select.options[select.selectedIndex];
+    const inventory = JSON.parse(selectedOption.getAttribute('data-inventory'));
+
+    // Populate colors
+    colorSelect.innerHTML = '<option value="">Select Color</option>';
+    const colors = [...new Set(inventory.map(item => item.color))];
+    colors.forEach(color => {
+        const option = document.createElement('option');
+        option.value = color;
+        option.textContent = color;
+        if (color === "{{ request.args.get('color') }}") {
+            option.selected = true;
+        }
+        colorSelect.appendChild(option);
+    });
+
+    // Populate sizes as radio buttons
+    sizeContainer.innerHTML = '';
+    const sizes = [...new Set(inventory.map(item => item.size))];
+    sizes.forEach(size => {
+        const div = document.createElement('div');
+        div.className = 'form-check size-checkbox';
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.className = 'form-check-input';
+        input.name = 'size_radio';
+        input.value = size;
+        input.id = 'size_' + size;
+        input.onclick = () => {
+            document.getElementById('size').value = size;
+            updateStock();
+        };
+        if (size === "{{ request.args.get('size') }}") {
+            input.checked = true;
+            document.getElementById('size').value = size;
+        }
+        const label = document.createElement('label');
+        label.className = 'form-check-label';
+        label.htmlFor = 'size_' + size;
+        label.textContent = size;
+        div.appendChild(input);
+        div.appendChild(label);
+        sizeContainer.appendChild(div);
+    });
+
+    updateStock();
+}
+
+function updateStock() {
     const select = document.getElementById('product_id');
     const color = document.getElementById('color').value.trim();
     const size = document.getElementById('size').value.trim();
@@ -351,7 +480,56 @@ function populateStock() {
     stockSpan.textContent = stock;
 }
 
-document.getElementById('color').addEventListener('input', populateStock);
-document.getElementById('size').addEventListener('input', populateStock);
+// Switch to Place Order tab when "Order Now" is clicked
+document.addEventListener('DOMContentLoaded', () => {
+    const orderNowButtons = document.querySelectorAll('.order-now-btn');
+    orderNowButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Switch to Place Order tab
+            const placeOrderTab = document.getElementById('place-order-tab');
+            const placeOrderPane = document.getElementById('place-order');
+            const availableTab = document.getElementById('available-tab');
+            const availablePane = document.getElementById('available');
+
+            // Remove active class from current tab and pane
+            availableTab.classList.remove('active');
+            availablePane.classList.remove('show', 'active');
+
+            // Add active class to Place Order tab and pane
+            placeOrderTab.classList.add('active');
+            placeOrderPane.classList.add('show', 'active');
+
+            // Populate the form
+            const productId = button.getAttribute('data-product-id');
+            const color = button.getAttribute('data-color');
+            const size = button.getAttribute('data-size');
+
+            const productSelect = document.getElementById('product_id');
+            productSelect.value = productId;
+            populateOptions();
+
+            // Ensure color and size are prefilled
+            const colorSelect = document.getElementById('color');
+            colorSelect.value = color;
+            document.getElementById('size').value = size;
+
+            // Check the corresponding size radio button
+            const sizeRadio = document.getElementById('size_' + size);
+            if (sizeRadio) {
+                sizeRadio.checked = true;
+            }
+
+            updateStock();
+        });
+    });
+
+    // If the page loads with the Place Order tab selected (via URL), populate the form
+    if ("{{ request.args.get('tab') }}" === "place-order" && document.getElementById('product_id').value) {
+        populateOptions();
+    }
+});
+
+document.getElementById('color').addEventListener('change', updateStock);
 </script>
 {% endblock %}
